@@ -50,10 +50,10 @@ func worker(work chan string, results chan urlStatus, wg *sync.WaitGroup) {
 	}
 }
 
-// tabulator  prints the results it receives
+// aggregator prints the results it receives
 // until it receives a value on the quit channel
 // upon which it causes the program to exit
-func tabulator(results chan urlStatus, quit chan time.Time) {
+func aggregator(results chan urlStatus, quit chan time.Time) {
 	for {
 		select {
 		case result := <-results:
@@ -76,7 +76,7 @@ func controller(urls []string, workers int) {
 	work := make(chan string)
 	quit := make(chan time.Time)
 
-	go tabulator(results, quit)
+	go aggregator(results, quit)
 	startTime := time.Now()
 	wg.Add(workers)
 	for i := 0; i < workers; i++ {
