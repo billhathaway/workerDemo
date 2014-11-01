@@ -3,6 +3,7 @@ Concurrency demo
 Shows off using workers, channels, and messages
 
 Installation: (Assuming go installed and GOPATH, PATH adjusted)  
+    
     go get github.com/billhathaway/workerDemo  
 
 Fetch default URLs with 1 worker goroutine  
