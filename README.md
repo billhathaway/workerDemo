@@ -26,7 +26,7 @@ Fetch default URLs with 5 worker goroutines
     2014/10/31 21:11:56 {http://cloudflare.com true}  
     2014/10/31 21:11:56 Finished in 0.517 second  
 
-#fetch URLs from a file and split the work among 10 worker goroutines  
+Fetch URLs from a file and split the work among 10 worker goroutines  
 
     workerDemo -f urlFile.txt -n 10
 
