@@ -4,9 +4,9 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -23,6 +23,7 @@ var (
 	}
 )
 
+// urlStatus contains the URL and whether it was reachable/return 200
 type urlStatus struct {
 	url     string
 	working bool
@@ -56,9 +57,10 @@ func tabulator(results chan urlStatus, quit chan time.Time) {
 	for {
 		select {
 		case result := <-results:
-			log.Println(result)
+			fmt.Printf("%s working=%v\n", result.url, result.working)
 		case startTime := <-quit:
-			log.Fatalf("Finished in %.3f seconds\n", time.Since(startTime).Seconds())
+			fmt.Printf("Finished in %.3f seconds\n", time.Since(startTime).Seconds())
+			os.Exit(0)
 		}
 	}
 }
@@ -94,7 +96,8 @@ func controller(urls []string, workers int) {
 func loadFile(file string) []string {
 	fd, err := os.Open(file)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	defer fd.Close()
 
