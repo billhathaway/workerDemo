@@ -1,0 +1,121 @@
+// Showing the use of goroutines and channels
+package main
+
+import (
+	"bufio"
+	"flag"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"sync"
+	"time"
+)
+
+var (
+	defaultURLs = []string{
+		"http://google.com",
+		"http://cnn.com",
+		"http://cposc.org",
+		"http://cloudflare.com",
+		"http://reddit.com",
+	}
+)
+
+type urlStatus struct {
+	url     string
+	working bool
+}
+
+// worker reads URL strings from the work chan until it is closed
+// each URL is tried, and if it is reachable with a 200 status code
+// a urlStatus is returned indicating working, otherwise a urlStatus
+// is returned with working false
+func worker(work chan string, results chan urlStatus, wg *sync.WaitGroup) {
+	// show off defer, could also just use wg.Done() at end of func
+	defer wg.Done()
+	for url := range work {
+		status := urlStatus{url: url}
+		response, err := http.Get(url)
+		if err != nil {
+			results <- status
+			continue
+		}
+		// drain data from the request
+		io.Copy(ioutil.Discard, response.Body)
+		status.working = (response.StatusCode == 200)
+		results <- status
+	}
+}
+
+// tabulator  prints the results it receives
+// until it receives a value on the quit channel
+// upon which it causes the program to exit
+func tabulator(results chan urlStatus, quit chan time.Time) {
+	for {
+		select {
+		case result := <-results:
+			log.Println(result)
+		case startTime := <-quit:
+			log.Fatalf("Finished in %.3f seconds\n", time.Since(startTime).Seconds())
+		}
+	}
+}
+
+// controller creates 3 channels, and spawns workers and a tabulator
+// the URLs are sent to the workers and then the work channel is closed
+// once all the workers are finished, the quit channel is sent a message
+// so the tabulator knows everything is completed
+func controller(urls []string, workers int) {
+	wg := &sync.WaitGroup{}
+
+	results := make(chan urlStatus)
+	work := make(chan string)
+	quit := make(chan time.Time)
+
+	go tabulator(results, quit)
+	startTime := time.Now()
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go worker(work, results, wg)
+	}
+	// send all the data
+	for _, url := range urls {
+		work <- url
+	}
+	close(work)
+	wg.Wait()
+	quit <- startTime
+	select {}
+}
+
+// loadFile reads a list of URLs from a file and returns them
+func loadFile(file string) []string {
+	fd, err := os.Open(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer fd.Close()
+
+	var urls []string
+	scanner := bufio.NewScanner(fd)
+
+	for scanner.Scan() {
+		urls = append(urls, scanner.Text())
+	}
+	return urls
+}
+
+func main() {
+	workers := flag.Int("n", 1, "number of workers")
+	urlFile := flag.String("f", "", "file containing URLs")
+	flag.Parse()
+	var urls []string
+	if *urlFile != "" {
+		urls = loadFile(*urlFile)
+	} else {
+		urls = defaultURLs
+	}
+	controller(urls, *workers)
+}
